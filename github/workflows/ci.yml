@@ -1,0 +1,51 @@
+name: Monorepo CI
+
+
+on:
+push:
+branches: ["main"]
+pull_request:
+
+
+jobs:
+catalog:
+runs-on: ubuntu-latest
+steps:
+- uses: actions/checkout@v4
+- uses: actions/setup-node@v4
+with: { node-version: 20 }
+- name: Install
+working-directory: services/catalog
+run: npm ci || npm i
+- name: Test
+working-directory: services/catalog
+run: npm test -- --coverage
+- name: Build Docker
+run: docker build -f services/catalog/Dockerfile -t catalog:ci .
+- name: Scan image (Trivy)
+uses: aquasecurity/trivy-action@0.20.0
+with:
+image-ref: catalog:ci
+severity: CRITICAL,HIGH
+exit-code: '0'
+
+
+payment:
+runs-on: ubuntu-latest
+steps:
+- uses: actions/checkout@v4
+- uses: actions/setup-go@v5
+with: { go-version: '1.22' }
+- name: Go test
+working-directory: services/payment
+run: |
+go mod tidy
+go test ./...
+- name: Build Docker
+run: docker build -f services/payment/Dockerfile -t payment:ci .
+- name: Scan image (Trivy)
+uses: aquasecurity/trivy-action@0.20.0
+with:
+image-ref: payment:ci
+severity: CRITICAL,HIGH
+exit-code: '0'
